@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 import glob
+import importlib
 import os
 import re
 import sys
@@ -70,26 +71,19 @@ class Reporter(object):
                 print "%s%s in %s" % (" " * (max_description_len - len(hit.description)), hit.description, hit.path)
 
 
-default_rules = [
-    # SSH
-    FilesContain("~/.ssh/**", "PRIVATE KEY", "SSH private key"),
-    # Chef
-    FilesContain("~/.chef/**", "PRIVATE KEY", "Chef validator private key"),
-    FilesExist("~/.chef/*encrypted*", "Potential Chef encrypted data bag key"),
-    # AWS unified secrets
-    FilesExist("~/.aws/credentials", "Unified AWS credentials"),
-    # Old-style AWS secrets
-    FilesExist("~/.ec2/aws-credential", "AWS credentials"),
-    FilesExist("~/.ec2/cert-amazon.pem", "AWS IAM certificate"),
-    FilesExist("~/.ec2/pk-amazon.pem", "AWS IAM private key"),
-    # Basic auth for PyPI servers
-    FilesContain("~/.pip/pip.conf", "extra-index-url.*https?://.*:", "Basic auth password to a PyPI server")
-]
+class Builder(object):
+    FilesContain = FilesContain
+    FilesExist = FilesExist
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Find files on your machine containing authentication credentials. A good start for any .gitignore file.")
     parser.add_argument("--quiet", "-q", help="Print only filenames, not the kind of credentials they contain.",
                         action="store_true")
+    parser.add_argument("--rules-module", "-r", help="A python module containing the rules to check.",
+                        action="store", default="default_rules")
     args = parser.parse_args()
-    Reporter().add_rules(default_rules).report(args.quiet)
+
+    rules_module = importlib.import_module(args.rules_module, package=None)
+    rules = rules_module.rules(Builder)
+    Reporter().add_rules(rules).report(args.quiet)
