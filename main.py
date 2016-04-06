@@ -5,6 +5,7 @@ import importlib
 import os
 import re
 import sys
+import subprocess
 
 
 class Hit(object):
@@ -27,6 +28,34 @@ class FilesExist(Rule):
         for filename in glob.glob(os.path.expanduser(self.glob)):
             if os.path.exists(os.path.expanduser(filename)):
                 yield Hit(filename, self.description)
+
+
+class Find(Rule):
+    def __init__(self, path, filename_patterns, description):
+        self.path = path
+        self.filename_patterns = filename_patterns
+        self.description = description
+
+    def _inames_or(self):
+        it = iter(self.filename_patterns)
+        yield '-iname'
+        yield next(it)
+        for item in it:
+            yield '-or'
+            yield '-iname'
+            yield item
+
+    def check(self):
+        argv = ['find', os.path.expanduser(self.path)] + list(self._inames_or())
+        print ' '.join(argv)
+        find = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+        stdout, stderr = find.communicate()
+
+        if find.returncode == 0:
+            for line in [line.strip() for line in stdout.split('\n') if line]:
+                yield Hit(line, self.description)
+        else:
+            raise Exception('exec failed: ' + str(argv))
 
 
 class FilesContain(Rule):
@@ -74,6 +103,7 @@ class Reporter(object):
 class Builder(object):
     FilesContain = FilesContain
     FilesExist = FilesExist
+    Find = Find
 
 
 if __name__ == '__main__':

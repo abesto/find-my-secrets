@@ -2,6 +2,7 @@ def rules(build):
     return [
         # SSH
         build.FilesContain("~/.ssh/**", "PRIVATE KEY", "SSH private key"),
+        build.FilesContain("~/.ssh/**", "PUBLIC KEY", "SSH public key"),
         # Chef
         build.FilesContain("~/.chef/**", "PRIVATE KEY", "Chef validator private key"),
         build.FilesExist("~/.chef/*encrypted*", "Potential Chef encrypted data bag key"),
@@ -13,8 +14,10 @@ def rules(build):
         build.FilesExist("~/.ec2/pk-amazon.pem", "AWS IAM private key"),
         # Old-style S3 secrets
         build.FilesExist("~/.s3cmd", "AWS S3 configuration"),
+        build.FilesExist("~/.s3cfg", "AWS S3 configuration"),
         # Basic auth for PyPI servers
-        build.FilesContain("~/.pip/pip.conf", "extra-index-url.*https?://.*:", "Basic auth password to a PyPI server"),
+        build.FilesContain("~/.pip/pip.conf", "https?://.*:", "Basic auth password to a PyPI server"),
+        build.FilesContain("~/.pydistutils.cfg", "https?://.*:", "Basic auth password to a PyPI server"),
         # Gradle
         build.FilesContain("~/.gradle/gradle.properties", "Password", "Package index credentials for Gradle"),
         # Docker
@@ -22,5 +25,11 @@ def rules(build):
         # LastPass
         build.FilesExist("~/.lpass/session_privatekey", "LastPass CLI session"),
         # Vault
-        build.FilesExist("~/.vault_token", "HashiCorp Vault token")
+        build.FilesExist("~/.vault_token", "HashiCorp Vault token"),
+        # GPG
+        build.FilesExist("~/.gnupg", "GPG directory"),
+        # SQL Workbench
+        build.FilesExist("~/.sqlworkbench/WbProfiles.xml", "SQL Workbench profiles"),
+        # SVN
+        build.FilesExist("~/.subversion/auth", "SVN credentials"),
     ]
