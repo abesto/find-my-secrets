@@ -73,7 +73,29 @@ class FilesContain(Rule):
                     yield Hit(filename, self.description)
 
 
-class Reporter(object):
+class Grep(Rule):
+    def __init__(self, path, regex, description):
+        self.path = path
+        self.regex = regex
+        self.description = description
+
+    def _binary(self):
+        for candidate in ['ag', 'ack', 'grep']:
+            if os.path.isfile(candidate):
+                return candidate
+
+    def check(self):
+        argv = [self._binary(), self.regex, '-l', '-r', os.path.expanduser(self.path)]
+        print ' '.join(argv)
+        find = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+        stdout, stderr = find.communicate()
+
+        for line in [line.strip() for line in stdout.split('\n') if line]:
+            yield Hit(line, self.description)
+
+
+
+class FastReporter(object):
     def __init__(self):
         self.items = []
 
@@ -88,10 +110,30 @@ class Reporter(object):
             for hit in item.check():
                 yield hit
 
-    def report(self, quiet):
-        if quiet:
-            for hit in self.check():
-                print hit.path
+    def report(self):
+        for hit in self.check():
+            print hit.path
+
+
+class FancyReporter(FastReporter):
+    def __init__(self):
+        self.items = []
+        self.quiet = False
+
+    def add_rules(self, items):
+        for item in items:
+            assert isinstance(item, Rule)
+            self.items.append(item)
+        return self
+
+    def check(self):
+        for item in self.items:
+            for hit in item.check():
+                yield hit
+
+    def report(self):
+        if self.quiet:
+            super(FancyReporter, self).report()
         else:
             hits = list(self.check())
             max_path_len = max(len(hit.path) for hit in hits)
@@ -104,6 +146,13 @@ class Builder(object):
     FilesContain = FilesContain
     FilesExist = FilesExist
     Find = Find
+    Grep = Grep
+
+    FancyReporter = FancyReporter
+    FastReporter = FastReporter
+
+    def __init__(self):
+        self.reporter = FancyReporter
 
 
 if __name__ == '__main__':
@@ -114,6 +163,11 @@ if __name__ == '__main__':
                         action="store", default="default_rules")
     args = parser.parse_args()
 
+    builder = Builder()
+
     rules_module = importlib.import_module(args.rules_module, package=None)
-    rules = rules_module.rules(Builder)
-    Reporter().add_rules(rules).report(args.quiet)
+    rules = rules_module.rules(builder)
+
+    reporter = builder.reporter()
+    reporter.quiet = args.quiet
+    reporter.add_rules(rules).report()

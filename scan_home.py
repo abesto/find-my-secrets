@@ -1,6 +1,8 @@
 def rules(build):
+    build.reporter = build.FastReporter
     return [
-        build.Find("/", [
+        build.Grep("~/.ssh", "AKIA\|PRIVATE KEY", "Potentially sensitive information"),
+        build.Find("~", [
             "*.key", 
             "*.pem",
             "*id_rsa*",
@@ -9,5 +11,5 @@ def rules(build):
             "*history*",
             "*token*",
             "*rc"
-        ] , "Potentially sensitive information")
+        ] , "Potentially sensitive information"),
     ]
